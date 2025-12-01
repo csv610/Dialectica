@@ -1,11 +1,13 @@
 import streamlit as st
 import ollama
 import sys
-import logging 
-import time  
-import datetime  
-import random 
+import logging
+import time
+import datetime
+import random
 import os
+from philosophyqa import CLASSES, TONES
+from llm import build_prompt
 
 class LlamaModel:
     def __init__(self, model_name="llama3.2", temperature=0.8, max_tokens=4096):
@@ -63,37 +65,6 @@ def display_chat_history():
         st.write(f"**Time Taken** : {entry['time']}")
         st.divider()
 
-
-CLASSES = ["Metaphysics", "Epistemology', "Ethics", "Aesthetics", "Logic and Reasoning", "Political Philosophy", "Philosophy of Science", "Philosophy of Religion", "Philosophy of Mind", "Philosophy of Language", "Philosophy of Time"]
-
-TONES = {
-    "Neutral": "Neutral",
-    "Analytical": "This tone focuses on breaking down arguments into smaller parts, evaluating their logic, and ensuring clarity. It’s often precise, critical, and detailed.",
-    "Speculative": "A more exploratory and imaginative tone that considers possibilities, hypotheses, or abstract ideas that go beyond concrete facts.",
-    "Socratic": "Based on Socrates’ method, this tone is questioning and inquisitive, often encouraging the other person to reflect on their beliefs and assumptions.",
-    "Didactic": "A teaching or instructive tone, where the speaker aims to impart knowledge or explain complex concepts in a clear, authoritative manner.",
-    "Dialectical": "This tone is characterized by an exchange of ideas between opposing viewpoints, with the aim of arriving at a higher truth through reasoned dialogue.",
-    "Cynical": "A more skeptical and sometimes dismissive tone, often critical of established ideas or institutions, questioning motives, and highlighting flaws.",
-    "Optimistic": "A hopeful and constructive tone that focuses on positive possibilities, growth, or ideal outcomes in philosophical exploration.",
-    "Pessimistic": "This tone reflects a more doubtful or negative outlook on human nature, existence, or philosophical concepts, often focusing on limitations and problems.",
-    "Empirical": "A tone that emphasizes experience, observation, and evidence, often associated with philosophers who stress the importance of real-world data and facts in their reasoning.",
-    "Existential": "A deeply personal and reflective tone that deals with individual experience, meaning, and the human condition, often touching on themes like freedom, isolation, and choice.",
-    "Normative": "This tone deals with values, ethics, and how things should be. It often involves moral judgments or considerations of right and wrong.",
-    "Absurdist": "A tone that reflects on the inherent contradictions or lack of meaning in life, often humorously or paradoxically, following in the tradition of philosophers like Camus."
-}
-
-def build_prompt(tone, user_input):
-    """Builds a prompt based on the selected tone and user input."""
-    if tone is None or tone == "Neutral":  # Check if tone is None or "None"
-        return user_input  # Return user input if tone is None or "None"
-
-    prompt = (
-        "You are an expert in discussing philosophical questions. "
-        f"Your tone is: **{tone}** in nature. "
-        "Please provide a thoughtful and detailed answer to the following question: "
-        f"**{user_input}**"
-    )
-    return prompt
 
 
 def config_panel():
