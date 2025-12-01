@@ -5,8 +5,7 @@ import logging
 import time
 import datetime
 import random
-import os
-from philosophyqa import CLASSES, TONES
+from philosophyqa import CLASSES, TONES, PhilosophyQuestions
 from llm import build_prompt
 
 class LlamaModel:
@@ -52,9 +51,13 @@ def generate_response(llm, user_input):
 logging.basicConfig(filename='llamachat.log', filemode='w', level=logging.INFO)  # Log to file in write mode
 
 @st.cache_resource
-def load_questions(file_path):
-    with open(file_path, 'r') as file:
-        return [line.strip() for line in file if line.strip()]  # Filter out empty lines
+def load_philosophy_questions(file_path="questions.json"):
+    """Load questions using the shared PhilosophyQuestions class"""
+    try:
+        return PhilosophyQuestions(file_path)
+    except FileNotFoundError:
+        st.error(f"Questions file not found: {file_path}")
+        return None
 
 def display_chat_history():
     """Display chat history with the latest query on top."""
@@ -97,40 +100,41 @@ def config_panel():
 
     return llm, selected_tone
 
-def get_new_question():
-
-    if os.path.exists('questions.txt'):
-        questions = load_questions('questions.txt')  # Use cached function to load questions
-        # Add button to select a random question on the right side
-        if st.button("Get Random Question", key="random_question_button"):
-            random_question = random.choice(questions)  # Select a random non-empty question
-            st.session_state.user_input = random_question  # Set user input to the random question
-    # Chat interface
-
+def get_new_question(questions_obj):
+    """Get a new question from user input or random selection"""
     if 'user_input' not in st.session_state:
         st.session_state.user_input = ""
 
-    question = st.text_input("Enter your input:", value="", key="user_input")  # Set value to empty initially
+    # Add button to select a random question
+    if st.button("Get Random Question", key="random_question_button"):
+        if questions_obj:
+            all_questions = questions_obj.get_all()
+            random_question = random.choice(all_questions)["question"]
+            st.session_state.user_input = random_question
+
+    question = st.text_input("Enter your input:", value="", key="user_input")
     return question
 
 def main():
     st.set_page_config(layout="wide")  # Set layout to wide
 
-    llm, tone = config_panel()  # Pass model_name, temperature, and max_tokens
+    llm, tone = config_panel()
 
-    question = get_new_question()
+    # Load questions using shared class
+    questions_obj = load_philosophy_questions()
 
-    class_question = f"Given the question: {question}, what is the most accurate classification? Choose from the following categories: {CLASSES}."
+    question = get_new_question(questions_obj)
 
-    
+    class_question = f"Given the question: {question}, what is the most accurate classification? Choose from the following categories: {', '.join(CLASSES)}."
+
     # Automatically send message when user input is provided and Enter is pressed
     if question:  # Check if there is any input
-        with st.spinner("Generating response..."): 
+        with st.spinner("Generating response..."):
             result = generate_response(llm, class_question)
-            class  = result['response']
+            class_result = result['response']
             prompt = build_prompt(tone, question)
-            result = generate_response(llm, prompt)              
-            result['class'] = class 
+            result = generate_response(llm, prompt)
+            result['class'] = class_result
         st.session_state.chat_history.append(result)
 
     # Display chat history

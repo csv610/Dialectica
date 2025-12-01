@@ -4,13 +4,12 @@ Philosophy Q&A CLI - Philosophical question answering tool
 Uses litellm for LLM provider abstraction and Gemini 2.5 Flash as default model
 """
 
-import json
 import argparse
 import sys
 import random
-from pathlib import Path
 from typing import Optional
-import litellm
+from philosophyqa import PhilosophyQuestions
+from llm import answer_question as answer_question_llm
 
 
 class PhilosophyQACLI:
@@ -25,53 +24,21 @@ class PhilosophyQACLI:
             model: LLM model to use (default: gemini-2.5-flash)
         """
         self.model = model
-        self.questions = self._load_questions(questions_file)
-
-    def _load_questions(self, questions_file: str) -> list:
-        """Load questions from JSON file"""
-        file_path = Path(questions_file)
-        if not file_path.exists():
-            raise FileNotFoundError(f"Questions file not found: {questions_file}")
-
-        with open(file_path, "r") as f:
-            return json.load(f)
-
-    def _get_question_by_id(self, question_id: int) -> Optional[dict]:
-        """Get a question by its ID"""
-        for q in self.questions:
-            if q["id"] == question_id:
-                return q
-        return None
-
-    def _query_llm(self, user_message: str) -> str:
-        """Query the LLM"""
-        messages = [{"role": "user", "content": user_message}]
-
-        try:
-            response = litellm.completion(
-                model=self.model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1024,
-            )
-
-            return response.choices[0].message.content
-
-        except Exception as e:
-            return f"Error querying model: {str(e)}"
+        self.questions_obj = PhilosophyQuestions(questions_file)
+        self.questions = self.questions_obj.get_all()
 
     def answer_question(self, question_text: str) -> str:
         """Get an answer to a philosophical question"""
-        system_and_question = (
-            "You are a thoughtful philosopher. Provide insightful, balanced perspectives on philosophical questions. "
-            "Consider multiple viewpoints and be intellectually rigorous.\n\n"
-            f"Question: {question_text}"
+        return answer_question_llm(
+            question=question_text,
+            model=self.model,
+            temperature=0.7,
+            max_tokens=1024,
         )
-        return self._query_llm(system_and_question)
 
     def explore_question(self, question_id: int) -> str:
         """Explore a specific question by ID"""
-        question = self._get_question_by_id(question_id)
+        question = self.questions_obj.get_by_id(question_id)
         if not question:
             return f"Question with ID {question_id} not found."
 
@@ -79,7 +46,7 @@ class PhilosophyQACLI:
 
     def list_questions(self, start: int = 1, limit: int = 10) -> None:
         """List questions"""
-        for q in self.questions[start - 1 : start - 1 + limit]:
+        for q in self.questions_obj.get_range(start, limit):
             print(f"#{q['id']}: {q['question']}")
 
 
