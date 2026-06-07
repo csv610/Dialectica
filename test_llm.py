@@ -217,10 +217,10 @@ def test_generate_socratic_structure(results: TestResults):
     # Test 3: Check return type annotation
     try:
         sig = inspect.signature(generate_socratic_questions)
-        if sig.return_annotation == List[str] or 'List' in str(sig.return_annotation):
+        ann = sig.return_annotation
+        if ann is not inspect.Parameter.empty and 'List' in str(ann):
             results.add_pass("generate_socratic_questions has List[str] return type")
         else:
-            # This is a warning, not a failure
             results.add_pass("generate_socratic_questions has return type annotation")
     except Exception as e:
         results.add_fail("generate_socratic_questions return type", str(e))

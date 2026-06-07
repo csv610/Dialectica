@@ -20,7 +20,7 @@ A comprehensive philosophical question-answering platform powered by LLM models,
 dialectica/
 ├── philosophyqa_cli.py      # Main CLI tool for answering questions
 ├── philosopher_sl.py        # Streamlit web interface
-├── llm_philosopher.py       # Core philosopher implementation
+├── philosophyqa.py          # Core philosopher implementation
 ├── llm.py                   # Low-level LLM utilities
 ├── questions.json           # 500 philosophical questions
 ├── requirements.txt         # Python dependencies
@@ -89,7 +89,7 @@ streamlit run philosopher_sl.py
 Use the philosophy Q&A in your own code:
 
 ```python
-from llm_philosopher import LLMPhilosopher, PhilosophyQuestions
+from philosophyqa import LLMPhilosopher, PhilosophyQuestions
 
 # Load questions
 questions = PhilosophyQuestions("questions.json")
@@ -207,7 +207,7 @@ answer = philosopher.answer_question(
 ### Project Structure
 
 - **llm.py**: Low-level LLM client and utility functions
-- **llm_philosopher.py**: Philosopher-specific implementations
+- **philosophyqa.py**: Philosopher-specific implementations
 - **philosophyqa_cli.py**: CLI interface
 - **philosopher_sl.py**: Streamlit web interface
 

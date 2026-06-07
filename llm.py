@@ -151,7 +151,8 @@ class LLMClient:
             LLM response text
         """
         messages = [
-            {"role": "user", "content": f"{system_prompt}\n\n{message}"}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": message}
         ]
 
         try:

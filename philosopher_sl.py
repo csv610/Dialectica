@@ -1,111 +1,101 @@
 import streamlit as st
-import ollama
 import sys
 import logging
 import time
 import datetime
 import random
 from philosophyqa import CLASSES, TONES, PhilosophyQuestions
-from llm import build_prompt
+from llm import build_prompt, LLMClient
 
-class LlamaModel:
-    def __init__(self, model_name="llama3.2", temperature=0.8, max_tokens=4096):
-        self.model_name = model_name
-        self.temperature = temperature
-        self.max_tokens = max_tokens
-        self.messages = []
 
-    def get_response(self, user_input):
-        prompt = [{'role': 'user', 'content': user_input}]
-        response = ollama.chat(
-            model=self.model_name, 
-            messages=prompt,
-            options={
-                "temperature": self.temperature,
-                "num_predict": self.max_tokens
-            }
-        )
-        return response['message']['content']
-    
 @st.cache_resource
-def get_llama_model(model_name, temperature, max_tokens):
-    return LlamaModel(model_name=model_name, temperature=temperature, max_tokens=max_tokens)
-    
-def generate_response(llm, user_input):
+def get_llm_client(model_name, temperature, max_tokens):
+    return LLMClient(model=model_name)
+
+
+def generate_response(client, user_input, temperature=0.8, max_tokens=4096):
     try:
-        start_time = time.time() 
-        response = llm.get_response(user_input)
-        end_time = time.time() 
-        time_taken = end_time - start_time 
-        
+        start_time = time.time()
+        response = client.completion(user_input, temperature=temperature, max_tokens=max_tokens)
+        end_time = time.time()
+        time_taken = end_time - start_time
+
         return {
             "response": response,
             "input": user_input,
-            "time": time_taken
-        }  
+            "time": time_taken,
+        }
     except Exception as e:
-        logging.error(f"Error generating response: {e}")  # Log the error
-        st.error("Sorry, I couldn't generate a response.")  # Keep user-facing error message
-        return "Sorry, I couldn't generate a response.", 0, 0, 0  # Return zeros on error
+        logging.error(f"Error generating response: {e}")
+        st.error("Sorry, I couldn't generate a response.")
+        return {
+            "response": "Sorry, I couldn't generate a response.",
+            "input": user_input,
+            "time": 0,
+        }
 
-logging.basicConfig(filename='llamachat.log', filemode='w', level=logging.INFO)  # Log to file in write mode
+
+logging.basicConfig(filename='llamachat.log', filemode='w', level=logging.INFO)
+
 
 @st.cache_resource
 def load_philosophy_questions(file_path="questions.json"):
-    """Load questions using the shared PhilosophyQuestions class"""
     try:
         return PhilosophyQuestions(file_path)
     except FileNotFoundError:
         st.error(f"Questions file not found: {file_path}")
         return None
 
+
 def display_chat_history():
-    """Display chat history with the latest query on top."""
     for entry in reversed(st.session_state.chat_history):
-        st.write(f"**👤 User**: {entry['Input']}")  # Display user input with emoji
-        st.write(f"**🦙 Llama**: {entry['response']}")  # Display Llama response with llama emoji
-        st.write(f"**Word Count** : {len(entry['response'])}")
-        st.write(f"**Time Taken** : {entry['time']}")
+        st.write(f"**User**: {entry['input']}")
+        st.write(f"**Assistant**: {entry['response']}")
+        st.write(f"**Word Count**: {len(entry['response'])}")
+        st.write(f"**Time Taken**: {entry['time']:.2f}s")
         st.divider()
 
 
-
 def config_panel():
-    # Sidebar for model configuration
     st.sidebar.header("Dialectica")
-    
-    model_name  = st.sidebar.selectbox("Select Model", ["llama3.2", "llama3.1"], index=0)
+
+    model_options = [
+        "ollama/llama3.2",
+        "ollama/llama3.1",
+        "ollama/gemma3",
+        "ollama/gemma3:12b",
+        "gemini-2.5-flash",
+        "gpt-4",
+        "gpt-4-turbo",
+        "claude-3-sonnet",
+    ]
+    model_name = st.sidebar.selectbox("Select Model", model_options, index=0)
     temperature = st.sidebar.slider("Temperature", 0.1, 1.0, 0.8, 0.1)
-    max_tokens  = st.sidebar.number_input("Max Tokens", min_value=1, max_value=4096, value=4000, step=100)
+    max_tokens = st.sidebar.number_input("Max Tokens", min_value=1, max_value=8192, value=4096, step=100)
 
-    # Add tone selection in the sidebar
-    selected_tone = st.sidebar.selectbox("Select Tone", TONES.keys())  # Tone selection dropdown
+    selected_tone = st.sidebar.selectbox("Select Tone", TONES.keys())
 
-    # Button to explain the selected tone
     if st.sidebar.button("Explain Tone"):
-        st.sidebar.write(TONES[selected_tone])  # Display explanation for the selected tone
+        st.sidebar.write(TONES[selected_tone])
 
-    # Add button to clear chat history in the sidebar
     if st.sidebar.button("Clear History"):
         st.session_state.chat_history = []
 
-    # Initialize session state for chat history
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
 
-    llm = get_llama_model(model_name, temperature, max_tokens)
+    client = get_llm_client(model_name, temperature, max_tokens)
 
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Get current time
-    st.sidebar.write(f"Time: {current_time}")  # Display current time in sidebar
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.sidebar.write(f"Time: {current_time}")
 
-    return llm, selected_tone
+    return client, selected_tone, temperature, max_tokens
+
 
 def get_new_question(questions_obj):
-    """Get a new question from user input or random selection"""
     if 'user_input' not in st.session_state:
         st.session_state.user_input = ""
 
-    # Add button to select a random question
     if st.button("Get Random Question", key="random_question_button"):
         if questions_obj:
             all_questions = questions_obj.get_all()
@@ -115,30 +105,29 @@ def get_new_question(questions_obj):
     question = st.text_input("Enter your input:", value="", key="user_input")
     return question
 
+
 def main():
-    st.set_page_config(layout="wide")  # Set layout to wide
+    st.set_page_config(layout="wide")
 
-    llm, tone = config_panel()
+    client, tone, temperature, max_tokens = config_panel()
 
-    # Load questions using shared class
     questions_obj = load_philosophy_questions()
 
     question = get_new_question(questions_obj)
 
     class_question = f"Given the question: {question}, what is the most accurate classification? Choose from the following categories: {', '.join(CLASSES)}."
 
-    # Automatically send message when user input is provided and Enter is pressed
-    if question:  # Check if there is any input
+    if question:
         with st.spinner("Generating response..."):
-            result = generate_response(llm, class_question)
+            result = generate_response(client, class_question, temperature, max_tokens)
             class_result = result['response']
             prompt = build_prompt(tone, question)
-            result = generate_response(llm, prompt)
+            result = generate_response(client, prompt, temperature, max_tokens)
             result['class'] = class_result
         st.session_state.chat_history.append(result)
 
-    # Display chat history
-    display_chat_history()  # Call the function to display chat history
+    display_chat_history()
+
 
 if __name__ == "__main__":
     main()

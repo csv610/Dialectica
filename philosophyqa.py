@@ -118,11 +118,12 @@ class LLMPhilosopher:
             LLM response
         """
         if system_prompt:
-            full_message = f"{system_prompt}\n\n{message}"
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message}
+            ]
         else:
-            full_message = message
-
-        messages = [{"role": "user", "content": full_message}]
+            messages = [{"role": "user", "content": message}]
 
         try:
             response = litellm.completion(
